@@ -1,0 +1,58 @@
+[package]
+name = "npd"
+version = "0.0.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+homepage = "https://github.com/d-e-s-o/npd"
+repository = "https://github.com/d-e-s-o/npd.git"
+description = """
+Now Playing Daemon.
+"""
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+incremental = false
+panic = "abort"
+
+[build-dependencies]
+anyhow = { version = "1.0.71", default-features = false, features = ["std"] }
+grev = { version = "0.1.3", default-features = false }
+
+[dependencies]
+anyhow = { version = "1.0.71", default-features = false, features = ["std"] }
+clap = { version = "4.1.4", default-features = false, features = ["derive", "help", "std", "suggestions", "usage"] }
+dirs = { version = "6.0", default-features = false }
+inotify = {version = "0.11", default-features = false }
+zbus = { version = "5.5", default-features = false, features = ["blocking-api", "tokio"] }
+
+[lints.rust]
+deprecated-safe = "warn"
+future-incompatible = "warn"
+keyword-idents = "warn"
+let-underscore = "warn"
+missing-copy-implementations = "warn"
+missing-debug-implementations = "warn"
+missing-docs = "warn"
+trivial-numeric-casts = "warn"
+unused = "warn"
+
+[lints.clippy]
+absolute-paths = "warn"
+allow-attributes = "warn"
+clone-on-ref-ptr = "warn"
+collapsible-else-if = "allow"
+collapsible-if = "allow"
+dbg-macro = "warn"
+doc-markdown = "warn"
+join-absolute-paths = "warn"
+large-enum-variant = "warn"
+let-and-return = "allow"
+let-unit-value = "allow"
+module-inception = "allow"
+redundant-closure-for-method-calls = "warn"
+unchecked-duration-subtraction = "warn"
+uninlined-format-args = "warn"
