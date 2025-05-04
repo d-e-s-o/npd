@@ -83,32 +83,48 @@ pub(crate) fn parse_config_file(path: &Path) -> Result<HashMap<String, String>> 
 }
 
 
-fn parse_state<R>(mut reader: R) -> Result<String>
+fn parse_state<R>(mut reader: R) -> Result<Option<String>>
 where
   R: BufRead,
 {
   let mut line = String::new();
+  let mut state = None;
   // The index of the currently playing song.
   let mut current_prefix = None;
+
   while let Ok(len) = reader.read_line(&mut line) {
     if len == 0 {
       break
     }
 
-    match &current_prefix {
-      // If we don't have a current song index yet, keep looking for it.
-      None => {
-        if let Some(current) = line.strip_prefix("current:") {
-          let current = usize::from_str(current.trim())
-            .with_context(|| format!("failed to parse current song index `{current}`"))?;
-          current_prefix = Some(format!("{current}:"));
-        }
-      },
+    match (&state, &current_prefix) {
       // If we have a prefix then check each line for a match.
-      Some(current_prefix) => {
+      (Some(()), Some(current_prefix)) => {
         if let Some(current) = line.strip_prefix(current_prefix) {
           // Once we found the current song we can stop immediately.
-          return Ok(current.trim().to_string())
+          return Ok(Some(current.trim().to_string()))
+        }
+      },
+      // If we don't have a current song index yet, keep looking for it.
+      (_, _) => {
+        if state.is_none() {
+          if let Some(state_str) = line.strip_prefix("state:") {
+            if state_str.trim() == "play" {
+              state = Some(())
+            } else {
+              // We aren't currently playing, so no point in showing a
+              // notification.
+              return Ok(None)
+            }
+          }
+        }
+
+        if current_prefix.is_none() {
+          if let Some(current) = line.strip_prefix("current:") {
+            let current = usize::from_str(current.trim())
+              .with_context(|| format!("failed to parse current song index `{current}`"))?;
+            current_prefix = Some(format!("{current}:"));
+          }
         }
       },
     }
@@ -120,7 +136,7 @@ where
 
 
 /// Parse the MPD state file, retrieving the current song.
-pub(crate) fn parse_state_file_current(path: &Path) -> Result<String> {
+pub(crate) fn parse_state_file_current(path: &Path) -> Result<Option<String>> {
   let file =
     File::open(path).with_context(|| format!("failed to open file `{}`", path.display()))?;
   parse_state(BufReader::new(file))
@@ -216,7 +232,7 @@ input {
   /// Check that we can extract the name of the currently playing file
   /// from an MPD state file.
   #[test]
-  fn state_file_parsing() {
+  fn state_file_parsing_play() {
     let state = r#"
 sw_volume: 80
 audio_device_state:1:My ALSA EQ
@@ -256,7 +272,34 @@ playlist_end
 "#;
 
     let reader = BufReader::new(Cursor::new(state));
-    let current = parse_state(reader).unwrap();
+    let current = parse_state(reader).unwrap().unwrap();
     assert_eq!(current, "by-artist/various/adele_-_someone_like_you.opus");
+  }
+
+  /// Make sure that when the state file indicates that playing is
+  /// paused, we don't report a current song.
+  #[test]
+  fn state_file_parsing_paused() {
+    let state = r#"
+sw_volume: 80
+audio_device_state:1:My ALSA EQ
+state: pause
+current: 1
+time: 18.372000
+random: 1
+repeat: 1
+single: 0
+consume: 0
+crossfade: 0
+mixrampdb: 0.000000
+mixrampdelay: -1.000000
+playlist_begin
+0:by-artist/various/21ror_-_talk_about.opus
+playlist_end
+"#;
+
+    let reader = BufReader::new(Cursor::new(state));
+    let current = parse_state(reader).unwrap();
+    assert_eq!(current, None);
   }
 }

@@ -127,7 +127,9 @@ pub fn run() -> Result<()> {
 
       let current =
         mpd::parse_state_file_current(path).context("failed to parse MPD state file")?;
-      let () = send_notification(&current).context("failed to send DBus notification")?;
+      if let Some(current) = current {
+        let () = send_notification(&current).context("failed to send DBus notification")?;
+      }
     }
   }
 }
