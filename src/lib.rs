@@ -97,6 +97,7 @@ pub fn run() -> Result<()> {
 
   let mut inotify = Inotify::init().context("failed to create file watcher")?;
   let mut buffer = [0u8; 1024];
+  let mut previous = None;
   loop {
     let _descriptor = inotify
       .watches()
@@ -127,9 +128,12 @@ pub fn run() -> Result<()> {
 
       let current =
         mpd::parse_state_file_current(path).context("failed to parse MPD state file")?;
-      if let Some(current) = current {
-        let () = send_notification(&current).context("failed to send DBus notification")?;
+      if current != previous {
+        if let Some(current) = &current {
+          let () = send_notification(current).context("failed to send DBus notification")?;
+        }
       }
+      previous = current;
     }
   }
 }
