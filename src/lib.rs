@@ -1,14 +1,12 @@
-// Copyright (C) 2025 Daniel Mueller <deso@posteo.net>
+// Copyright (C) 2025-2026 Daniel Mueller <deso@posteo.net>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Now Playing Daemon (`npd`) is a program for sending `DBus`
 //! notifications when the song currently played by MPD changes.
 
-mod args;
 mod mpd;
 
 use std::collections::HashMap;
-use std::env::args_os;
 use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
@@ -17,9 +15,6 @@ use anyhow::ensure;
 use anyhow::Context as _;
 use anyhow::Result;
 
-use clap::error::ErrorKind;
-use clap::Parser as _;
-
 use inotify::Inotify;
 use inotify::WatchMask;
 
@@ -27,8 +22,6 @@ use zbus::blocking::connection::Builder as ConnectionBuilder;
 use zbus::names::WellKnownName;
 use zbus::zvariant::Value;
 use zbus::Address;
-
-use crate::args::Args;
 
 
 fn send_notification(summary: &str) -> Result<()> {
@@ -78,17 +71,6 @@ fn send_notification(summary: &str) -> Result<()> {
 
 /// Run the program.
 pub fn run() -> Result<()> {
-  let _args = match Args::try_parse_from(args_os()) {
-    Ok(args) => args,
-    Err(err) => match err.kind() {
-      ErrorKind::DisplayHelp | ErrorKind::DisplayVersion => {
-        print!("{err}");
-        return Ok(())
-      },
-      _ => return Err(err.into()),
-    },
-  };
-
   let config_path = mpd::find_config()?;
   let config = mpd::parse_config_file(&config_path).context("failed to parse MPD config file")?;
   let state_file = config
