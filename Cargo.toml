@@ -40,7 +40,7 @@ anyhow = { version = "1.0.71", default-features = false, features = ["std"] }
 clap = { version = "4.1.4", default-features = false, features = ["derive", "help", "std", "suggestions", "usage"] }
 dirs = { version = "7.0", default-features = false }
 inotify = {version = "0.11", default-features = false }
-zbus = { version = "5.5", default-features = false, features = ["blocking-api", "tokio"] }
+zbus = { version = "6.0", default-features = false, features = ["blocking-api", "tokio"] }
 
 [lints.rust]
 deprecated-safe = "warn"
