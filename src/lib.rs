@@ -6,7 +6,10 @@
 
 mod mpd;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::env;
+use std::env::home_dir;
 use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
@@ -69,6 +72,19 @@ fn send_notification(summary: &str) -> Result<()> {
   Ok(())
 }
 
+
+fn expand_tilde(path: &str) -> Result<Cow<'_, Path>> {
+  let homed = if path == "~" || path.starts_with("~/") {
+    let home = home_dir().context("failed to retrieve home directory")?;
+    Cow::Owned(home.join(path.strip_prefix("~/").unwrap_or("")))
+  } else {
+    Cow::Borrowed(Path::new(path))
+  };
+
+  Ok(homed)
+}
+
+
 /// Run the program.
 pub fn run() -> Result<()> {
   let config_path = mpd::find_config()?;
@@ -76,6 +92,7 @@ pub fn run() -> Result<()> {
   let state_file = config
     .get("state_file")
     .context("MPD configuration does not specify `state_file`")?;
+  let state_file = expand_tilde(state_file)?;
 
   let mut inotify = Inotify::init().context("failed to create file watcher")?;
   let mut buffer = [0u8; 1024];
@@ -83,15 +100,18 @@ pub fn run() -> Result<()> {
   loop {
     let _descriptor = inotify
       .watches()
-      .add(state_file, WatchMask::CREATE)
-      .with_context(|| format!("failed to add file watch for `{state_file}`"))?;
+      .add(&state_file, WatchMask::CREATE)
+      .with_context(|| format!("failed to add file watch for `{}`", state_file.display()))?;
 
-    let mut events = inotify
-      .read_events_blocking(&mut buffer)
-      .with_context(|| format!("failed to wait for inotify event on `{state_file}`"))?;
+    let mut events = inotify.read_events_blocking(&mut buffer).with_context(|| {
+      format!(
+        "failed to wait for inotify event on `{}`",
+        state_file.display()
+      )
+    })?;
 
     if events.next().is_some() {
-      let path = Path::new(state_file);
+      let path = &state_file;
       let mut i = 0;
       // TODO: It is unclear why the file would not exist shortly after
       //       we receive a creation event, but that is what we see
