@@ -10,6 +10,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::env::home_dir;
+use std::fs::metadata;
 use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
@@ -100,7 +101,7 @@ pub fn run() -> Result<()> {
   loop {
     let _descriptor = inotify
       .watches()
-      .add(&state_file, WatchMask::CREATE)
+      .add(&state_file, WatchMask::CREATE | WatchMask::MODIFY)
       .with_context(|| format!("failed to add file watch for `{}`", state_file.display()))?;
 
     let mut events = inotify.read_events_blocking(&mut buffer).with_context(|| {
@@ -118,7 +119,7 @@ pub fn run() -> Result<()> {
       //       frequently. There shouldn't be any races, assuming it's
       //       only written a single time. Need to figure out what is
       //       going on.
-      while !path.exists() {
+      while !path.exists() || metadata(path)?.len() == 0 {
         i += 1;
         ensure!(
           i < 500,
